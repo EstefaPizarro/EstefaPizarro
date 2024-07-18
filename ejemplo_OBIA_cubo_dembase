@@ -1,0 +1,43 @@
+# Segmentacion de cubo con capa base DEM
+
+# Carga de paquetes  --------------------------
+pacman::p_load("sits", "sitsdata", "sf", "tidyverse", "tmap")
+
+#  Carga de cubos locales regulares ----------------------------------
+
+# Sentinel-2 
+s2_local <- sits_cube(
+  source         = "MPC",               
+  collection     = "SENTINEL-2-L2A",    
+  data_dir       = "/data/out/01.Maule/")
+
+# DEM
+dem_local <- sits_cube(
+  source     = "MPC",
+  collection = "COP-DEM-GLO-30",
+  data_dir   = "/data/out/03.DEM/")
+
+cube_dem <- sits_add_base_cube(s2_local, dem_local) %>% 
+  dplyr::filter(tile == "19HBA")
+
+#  Segmentar cubo (OBIA) ---------------------------------------------------
+
+# Segmentacion con bandas del test3
+test3 <- sits_select(data = cube_dem,
+                    bands = c("NDVI","PSRI","NDWI", "B11","B12",
+                              "B06","B05","B07"))
+
+segments_t3 <- sits_segment(
+  cube = test3, 
+  output_dir = "/data/out/06.Segments",
+  multicores = 4,               # maximo recomendado para segmentacion (4 multicores)
+  memsize = 8,                 
+  seg_fn = sits_slic(
+    step = 30,                  # distancia, medida en número de celdas, entre los centros de los superpíxeles iniciales
+    compactness = 1,            # Valor que controla la densidad de los superpíxeles. valores más grandes hacen que los grupos sean más compactos.
+    dist_fun = "euclidean",     # metrica utilizada para medir la distancia entre valores
+    iter = 10,                  # numero de iteraciones
+    minarea = 20                # Tamaño mínimo de los superpíxeles de salida (medido en número de celdas). 
+  ),
+  version = "prueba_dem_base"                
+)
